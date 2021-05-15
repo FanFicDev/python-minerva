@@ -1,0 +1,56 @@
+python-minerva is a fanfic (and web serial) metadata library. Currently it is
+focused on FFN, but will grow with the needs and time of the author.
+
+This includes a python library called minerva (found in src/) along with a
+number of utility scripts written against it (top level *.py scripts) for
+crawling and parsing metadata.
+
+
+The general workflow is:
+	refresh fandoms
+./ffnmeta.py
+
+	ensure all crossovers are marked
+./setup_ffn_crossovers.py
+
+	update scrollDate in prescrape_ffn_fandoms.py and run
+while true; do time ./prescrape_ffn_fandoms.py 1 0 ; sleep 30s; done
+
+	crawl first chapters
+	update oldMaxId, maxId
+while true; do time ./prescrape_ffn.py 1 stripe1 1 0 ; sleep 30s; done
+
+	process all recent metadata
+tail process_story_meta.log
+time ./process_story_meta.py ${doneId}
+
+	crawl all new chapters
+	update oldMaxId = 0
+while true; do time ./prescrape_ffn.py 2 stripe 1 0 ; sleep 30s; done
+
+	investigate deaths?
+TODO: explain ./quincy.py
+
+	dump and upload
+cd /.../minerva_dump_xz
+mkdir tmp
+cd tmp
+vim ../dump_par.sh # update start and end point
+../dump_par.sh # actually export new ffn data
+# xz the manifest files
+for f in *.tsv; do xz $f; done
+# build partial master manifest
+../rebuild_master_manifest.sh
+# merge it into master (manually)
+vim ./master_manifest.tsv ../master_manifest.tsv
+rm ./master_manifest.tsv
+# rsync up new files
+rsync -aPv ../master_manifest.tsv ./*.tsv.xz ./*.tar.xz dst:/dest/path/
+# rsync them to other places
+# ...
+# move files to long term dir
+mv ./*.tsv.xz ../
+rm ./master_manifest.tsv
+cd ..
+rmdir tmp
+
